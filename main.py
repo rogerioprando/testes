@@ -8,4 +8,4 @@ if __name__ == '__main__':
         id = input('[MAIN] ID: \n').strip()
         msg = input('[MAIN] MSG: \n').strip()
         data_send = (msg, id)
-        conect_xvm.socketsend_queue.put(data_send)
+        conect_xvm.sendcommand(data_send)
