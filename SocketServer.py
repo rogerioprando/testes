@@ -1,9 +1,12 @@
 import socket
 import re
+import sys
 from multiprocessing import Process, Queue, Manager
 
 UDP_PORT = 4047
 
+# usar @staticmethod ou @classmethod ?
+# com class não usaria __init__, declararia td como global
 
 class SocketServer:
 
@@ -27,27 +30,35 @@ class SocketServer:
     def receiving(self, sock, devices_addrs):
         sock.bind(('', UDP_PORT))
         while True:
-            data, addr = sock.recvfrom(1024)
-            data = data.decode('ascii')
-            print('\n\n')
-            print('[RECV] Recebido {} de {}' .format(data, addr))
-            id = re.findall(r'ID=([A-F0-9]{4})', data)
-            devices_addrs[str(id[0])] = addr
-            self.answer_ack(self, data)
-            if not self.iskeepalive(data):
-                self.socketrecv_queue.put(data)
+            try:
+                data, addr = sock.recvfrom(1024)
+                data = data.decode('ascii')
+                #print('\n\n')
+                #print('[RECV] Recebido {} de {}' .format(data, addr))
+                id = re.findall(r'ID=([A-F0-9]{4})', data)
+                devices_addrs[str(id[0])] = addr
+                self.answer_ack(self, data)
+                if not self.iskeepalive(data):
+                    self.socketrecv_queue.put(data)
+            except(EOFError, KeyboardInterrupt):
+                print('Exit receiving ...')
+                sys.exit(0)
 
     @staticmethod
     def sending(self, sock, devices_addrs):
         while True:
-            to_send = self.socketsend_queue.get()   # to_send[0]: data to_send[1]: id
-            if bool(devices_addrs.get(to_send[1])):
-                sock.sendto((to_send[0] + '\r\n').encode(), devices_addrs[to_send[1]])
-                # essa linha localhost usa apenas quando for testar sem virloc
-                # sock.sendto((msg[0] + '\r\n').encode(), ('localhost', 4095))
-                print('[SEND] Enviado {} para {}'.format(to_send, devices_addrs[to_send[1]]))
-            else:
-                print('[SEND] ID {} não possui um IP' .format(to_send[1]))
+            try:
+                to_send = self.socketsend_queue.get()  # to_send[0]: data to_send[1]: id
+                if bool(devices_addrs.get(to_send[1])):
+                    sock.sendto((to_send[0] + '\r\n').encode(), devices_addrs[to_send[1]])
+                    # essa linha localhost usa apenas quando for testar sem virloc
+                    # sock.sendto((msg[0] + '\r\n').encode(), ('localhost', 4095))
+                    #print('[SEND] Enviado {} para {}'.format(to_send, devices_addrs[to_send[1]]))
+                else:
+                    print('[SEND] ID {} não possui um IP'.format(to_send[1]))
+            except(EOFError, KeyboardInterrupt):
+                print('Exit sending ...')
+                sys.exit(0)
 
     @staticmethod
     def iskeepalive(data):
